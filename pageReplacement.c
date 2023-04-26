@@ -3,7 +3,7 @@
 #include <string.h>
 
 #define BUF_SIZE 64
-#define DEBUG 1
+#define DEBUG 0
 typedef struct listNode{
     int pageNum;
     struct listNode *prev;
@@ -120,7 +120,6 @@ int replaceItemArray(int a[],int r, int i, int n){
 }
 
 void printFrames(int a[], int n){
-    
     for(int i = 0; i < n; i++){
         printf("#Frame %d: %d\n", i+1, a[i]);
     }
@@ -134,19 +133,20 @@ void pageReplace(FILE* fp, int frames, int algType){
     } 
     char *str = malloc(BUF_SIZE * sizeof(char));
     char *ptr;
-    char const delim = ' ';
+    //char const delim = ' ';
     int pageNum, pagePlace;
-    char *action,*tok;
+    char num[4];
     node *head=NULL, *tail=NULL;
+    int readMiss = 0, writeMiss = 0;
+    int pageRefs = 0, pageMiss = 0, pageMissTime = 0, writingBackDirty = 0;
     while(!feof(fp)){
         ptr = fgets(str, BUF_SIZE, fp);
         //read line, and if we can
         if(ptr){
             //get the action, either read (R) or write(W)
-            action = strtok(str, &delim);
             //Get the virtual page number
-            tok = strtok(NULL, &delim);
-            pageNum = atoi(tok);
+            strncpy(num, &str[2], 4);
+            pageNum = atoi(num);
             //If the virtual page number is in pageframes, then it is a hit
             pagePlace = inArray(pageFrames, pageNum, frames);
             if(pagePlace != -1){
@@ -160,32 +160,54 @@ void pageReplace(FILE* fp, int frames, int algType){
                     if(algType == 2) insertNodeLRU(&head, &tail, pageNum, index); 
                     framesUsed ++;
                     //there might be something done different between reads/writes, so subject to change
-                    if(*action == 'R'){
+                    if(*str == 'R'){
                         if(DEBUG == 1) printf("#Page fault, read issue\n");
+                        pageMissTime += 5;
+                        readMiss++;
                     }
-                    if(*action == 'W'){
-                        
+                    if(*str == 'W'){
+                        writingBackDirty += 15;
+                        pageMissTime += 15;
                         if(DEBUG == 1) printf("#Page fault, write issue\n");
+                        writeMiss++;
                     }
+                    pageMiss++;
                 }
                 //No room in the frames, so replace one of the frames, which is where the algorithm
                 //type comes into play
                 else{
+                    pageMiss++;
                     node *page = NULL;
                     //Need to replace replacing item to algorithm
                     if(algType == 1 || algType == 2){
                         page = getFirstNode(&head, &tail);
                     }
                     if(DEBUG == 1) printf("#Page Fault! Replacing %d with %d\n", page->pageNum, pageNum);
-                    //replaceItemArray(pageFrames, replacePage, pageNum, frames);
                     pageFrames[page->index] = pageNum;
                     insertNode(&head, &tail, pageNum, page->index);
+                    if(*str == 'R'){
+                        if(DEBUG == 1) printf("#Page fault, read issue\n");
+                        pageMissTime += 5;
+                        readMiss++;
+                    }
+                    if(*str == 'W'){
+                        pageMissTime += 15;
+                        writingBackDirty += 15;
+                        if(DEBUG == 1) printf("#Page fault, write issue\n");
+                        writeMiss++;
+                    }
                     free(page);
                 }
             }
+            pageRefs++;
         }
     }
     if(DEBUG == 1)  printFrames(pageFrames, frames);
+    printf("#read misses: %d,write misses: %d\n", readMiss, writeMiss);
+    printf("Total number of page references: %d\n", pageRefs);
+    printf("Total number of page misses: %d\n", pageMiss);
+    printf("Total number of time units for page misses: %d\n", pageMissTime);
+    printf("Total number of time units for writing back the dirty page: %d\n", writingBackDirty);
     freeQueue(&head);
     free(str);
 }
@@ -197,7 +219,7 @@ int main(int argc, char const *argv[]) {
     }
     
     int frames = atoi(argv[2]); 
-    int curAlgo = -1; 
+    int curAlgo = 1; 
     if (strncmp("FIFO", argv[1], 4) == 0) curAlgo = 1;	
     if (strncmp("LRU", argv[1], 3) == 0) curAlgo = 2;
     FILE *fp;
