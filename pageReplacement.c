@@ -336,7 +336,7 @@ int main(int argc, char const *argv[]) {
     FILE *fp;
     fp = fopen(argv[3], "r");
     if(fp){
-        if (strncmp("MIN", argv[1], 3) == 0) {
+        if (strncmp("OPT", argv[1], 3) == 0) {
             pageReplaceMin(fp, frames);
         } else {
             pageReplace(fp, frames, curAlgo);
