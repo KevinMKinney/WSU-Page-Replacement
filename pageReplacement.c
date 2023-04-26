@@ -24,20 +24,60 @@ void insertNode(node **head, node **tail, int pn, int i){
         *tail = n;
     }else{
         
-        (*tail)->next = n;
         n->prev = *tail;
-        *tail = n;    
+        (*tail)->next = n;
+        *tail = n;
     }
 }
 
-node * FIFO(node**head, node**tail){
+void insertNodeLRU(node **head, node **tail, int pn, int i){
+    node *n = *head;//start at head
+    node * temp = NULL;//used to transverse the list
+    while(n != NULL){
+        //if node found with the same virtual page number
+        if(n->pageNum == pn){
+            //if it is the tail (or start), then no need to change queue
+            if(n == *tail){
+                 return;
+            }
+            //If it is the head, then things to the right
+            else if(n == *head){
+                *head = n->next;
+                (*head)->prev = NULL;
+            }
+            //If in the middle, then move things around so node is not in the list
+            else{
+                n->next->prev = n->prev;
+                n->prev->next = n->next;
+            }//found node, so no more search
+            break;
+        }
+        //iterate through list
+        temp = n->next;
+        n = temp; 
+    }
+    //if empty queue or node with page number not present in queue, then add to tail of queue
+    if(n == NULL){
+        insertNode(head, tail, pn, i);
+    }else{
+        //put the node found from the queue at the end
+        //index and pagNum should be the same, but update next and prev, and the tail
+        n->next = NULL;
+        (*tail)->next = n;
+        n->prev = *tail;
+        *tail = n;
+    }
+
+}
+
+node * getFirstNode(node**head, node**tail){
     node* n = NULL;
     if(*head != NULL){
         n = (*head);
         *head = n->next;
-        
-        if(*head == NULL) *tail = NULL;
-        else (*head)->prev = NULL;
+        (*head)->prev = NULL;
+    }else{
+        *tail = NULL;
     }
     return n;
 }
@@ -54,10 +94,10 @@ void freeQueue(node **head){
 
 int inArray(int a[], int i, int n){
     for(int j = 0; j < n; j++){
-        if(a[j] == i) return 1; 
-        if(a[j] == -1) return 0;//if empty space, then it is not in there
+        if(a[j] == i) return j; 
+        if(a[j] == -1) return -1;//if empty space, then it is not in there
     }
-    return 0; 
+    return -1; 
 }
 
 int insertIntoArray(int a[], int i, int n){
@@ -82,7 +122,7 @@ int replaceItemArray(int a[],int r, int i, int n){
 void printFrames(int a[], int n){
     
     for(int i = 0; i < n; i++){
-        printf("Frame %d: %d\n", i+1, a[i]);
+        printf("#Frame %d: %d\n", i+1, a[i]);
     }
 }
 
@@ -95,7 +135,7 @@ void pageReplace(FILE* fp, int frames, int algType){
     char *str = malloc(BUF_SIZE * sizeof(char));
     char *ptr;
     char const delim = ' ';
-    int pageNum;
+    int pageNum, pagePlace;
     char *action,*tok;
     node *head=NULL, *tail=NULL;
     while(!feof(fp)){
@@ -108,20 +148,24 @@ void pageReplace(FILE* fp, int frames, int algType){
             tok = strtok(NULL, &delim);
             pageNum = atoi(tok);
             //If the virtual page number is in pageframes, then it is a hit
-            if(inArray(pageFrames, pageNum, frames)){
-                if(DEBUG == 1) printf("It's a hit!\n");
+            pagePlace = inArray(pageFrames, pageNum, frames);
+            if(pagePlace != -1){
+                if(DEBUG == 1) printf("#%d is a hit!\n", pageNum);
+                if(algType == 2) insertNodeLRU(&head, &tail, pageNum, pagePlace);
             }else{//If not, then page fault
                 if(framesUsed < frames){//If there are room in page frame, insert, but page fault
                     int index = replaceItemArray(pageFrames, -1, pageNum, frames);
-                    insertNode(&head, &tail, pageNum, index);
+                    
+                    if(algType == 1) insertNode(&head, &tail, pageNum, index);
+                    if(algType == 2) insertNodeLRU(&head, &tail, pageNum, index); 
                     framesUsed ++;
                     //there might be something done different between reads/writes, so subject to change
                     if(*action == 'R'){
-                        if(DEBUG == 1) printf("read issue\n");
+                        if(DEBUG == 1) printf("#Page fault, read issue\n");
                     }
                     if(*action == 'W'){
                         
-                        if(DEBUG == 1) printf("write issue\n");
+                        if(DEBUG == 1) printf("#Page fault, write issue\n");
                     }
                 }
                 //No room in the frames, so replace one of the frames, which is where the algorithm
@@ -129,10 +173,10 @@ void pageReplace(FILE* fp, int frames, int algType){
                 else{
                     node *page = NULL;
                     //Need to replace replacing item to algorithm
-                    if(algType == 1){
-                        page = FIFO(&head, &tail);
+                    if(algType == 1 || algType == 2){
+                        page = getFirstNode(&head, &tail);
                     }
-                    if(DEBUG == 1) printf("Replacing %d with %d\n", page->pageNum, pageNum);
+                    if(DEBUG == 1) printf("#Page Fault! Replacing %d with %d\n", page->pageNum, pageNum);
                     //replaceItemArray(pageFrames, replacePage, pageNum, frames);
                     pageFrames[page->index] = pageNum;
                     insertNode(&head, &tail, pageNum, page->index);
