@@ -330,10 +330,9 @@ void pageReplaceClock(FILE* fp, int frames){
         pageFrames[i] = -1;
         clockBits[i] = 0;
     }
-    int ind = 0;
+    int ind = 0; // would be cooler if this was a pointer to clockBits, but this works fine
     char *str = malloc(BUF_SIZE * sizeof(char));
     char *ptr;
-    //char const delim = ' ';
     int pageNum, pagePlace;
     char num[4];
     int readMiss = 0, writeMiss = 0;
@@ -354,29 +353,9 @@ void pageReplaceClock(FILE* fp, int frames){
                 if(DEBUG == 1) printf("#%d is a hit!\n", pageNum);
                 clockBits[pagePlace] = 1;
                 
-                // for visualizing how the clock algorithm works
-                printf("(%d)\n", pageNum);
-                for(int i = 0; i < frames; i++){
-                    if (i == ind) {
-                        printf("%d | %d <---\n", pageFrames[i], clockBits[i]);
-                    } else {
-                        printf("%d | %d\n", pageFrames[i], clockBits[i]);
-                    }
-                }
-                printf("\n");
             }else{//If not, then page fault
                 pageMiss++;
-                for (;;) {
-                    // for visualizing how the clock algorithm works
-                    printf("(%d)\n", pageNum);
-                    for(int i = 0; i < frames; i++){
-                        if (i == ind) {
-                            printf("%d | %d <---\n", pageFrames[i], clockBits[i]);
-                        } else {
-                            printf("%d | %d\n", pageFrames[i], clockBits[i]);
-                        }
-                    }
-                    printf("\n");
+                for (;;) {                    
                     if (clockBits[ind] == 0) {
                         // found frame to replace
                         pageFrames[ind] = pageNum;
