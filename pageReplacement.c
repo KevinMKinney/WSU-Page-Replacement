@@ -323,6 +323,96 @@ void pageReplaceMin(FILE* fp, int frames){
     free(str);
 }
 
+void pageReplaceClock(FILE* fp, int frames){
+    int pageFrames[frames];
+    int clockBits[frames];
+    for(int i = 0; i < frames; i++){
+        pageFrames[i] = -1;
+        clockBits[i] = 0;
+    }
+    int ind = 0;
+    char *str = malloc(BUF_SIZE * sizeof(char));
+    char *ptr;
+    //char const delim = ' ';
+    int pageNum, pagePlace;
+    char num[4];
+    int readMiss = 0, writeMiss = 0;
+    int pageRefs = 0, pageMiss = 0, pageMissTime = 0, writingBackDirty = 0;
+
+    while(!feof(fp)){
+        ptr = fgets(str, BUF_SIZE, fp);
+        //read line, and if we can
+        if(ptr){
+            //get the action, either read (R) or write(W)
+            //Get the virtual page number
+            strncpy(num, &str[2], 4);
+            pageNum = atoi(num);
+            //If the virtual page number is in pageframes, then it is a hit
+            pagePlace = inArray(pageFrames, pageNum, 0, frames);
+
+            if(pagePlace != -1){
+                if(DEBUG == 1) printf("#%d is a hit!\n", pageNum);
+                clockBits[pagePlace] = 1;
+                
+                // for visualizing how the clock algorithm works
+                printf("(%d)\n", pageNum);
+                for(int i = 0; i < frames; i++){
+                    if (i == ind) {
+                        printf("%d | %d <---\n", pageFrames[i], clockBits[i]);
+                    } else {
+                        printf("%d | %d\n", pageFrames[i], clockBits[i]);
+                    }
+                }
+                printf("\n");
+            }else{//If not, then page fault
+                pageMiss++;
+                for (;;) {
+                    // for visualizing how the clock algorithm works
+                    printf("(%d)\n", pageNum);
+                    for(int i = 0; i < frames; i++){
+                        if (i == ind) {
+                            printf("%d | %d <---\n", pageFrames[i], clockBits[i]);
+                        } else {
+                            printf("%d | %d\n", pageFrames[i], clockBits[i]);
+                        }
+                    }
+                    printf("\n");
+                    if (clockBits[ind] == 0) {
+                        // found frame to replace
+                        pageFrames[ind] = pageNum;
+                        clockBits[ind] = 1;
+                        ind = (ind + 1) % frames;
+                        break;
+                    } else {
+                        clockBits[ind] = 0;
+                        ind = (ind + 1) % frames;
+                    }
+                }
+
+                if(*str == 'R'){
+                    if(DEBUG == 1) printf("#Page fault, read issue\n");
+                    pageMissTime += 5;
+                    readMiss++;
+                }
+                if(*str == 'W'){
+                    pageMissTime += 15;
+                    writingBackDirty += 15;
+                    if(DEBUG == 1) printf("#Page fault, write issue\n");
+                    writeMiss++;
+                }
+            }
+            pageRefs++;
+        }
+    }
+    if(DEBUG == 1)  printFrames(pageFrames, frames);
+    printf("#read misses: %d,write misses: %d\n", readMiss, writeMiss);
+    printf("Total number of page references: %d\n", pageRefs);
+    printf("Total number of page misses: %d\n", pageMiss);
+    printf("Total number of time units for page misses: %d\n", pageMissTime);
+    printf("Total number of time units for writing back the dirty page: %d\n", writingBackDirty);
+    free(str);
+}
+
 int main(int argc, char const *argv[]) {
     if(argc != 4){
         printf("Not enough arguements\n");
@@ -339,7 +429,11 @@ int main(int argc, char const *argv[]) {
         if (strncmp("OPT", argv[1], 3) == 0) {
             pageReplaceMin(fp, frames);
         } else {
-            pageReplace(fp, frames, curAlgo);
+            if (strncmp("CLK", argv[1], 3) == 0) {
+                pageReplaceClock(fp, frames);
+            } else {
+                pageReplace(fp, frames, curAlgo);
+            }
         }
         if(fclose(fp) != 0){
             printf("cannot close file %s\n", argv[3]);
