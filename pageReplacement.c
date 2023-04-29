@@ -213,7 +213,14 @@ void pageReplace(FILE* fp, int frames, int algType){
     free(str);
 }
 
+/**
+ * pageReplaceMin = an implementation of the Belady's Min or OPT algorithm for page replacement
+ * input(s):
+ *      fp - a FILE pointer to the file that contains the instructions
+ *      frames - the number of possible frames
+ **/
 void pageReplaceMin(FILE* fp, int frames){
+    // same setup in pageReplace
     int framesUsed = 0;
     int pageFrames[frames];
     for(int i = 0; i < frames; i++){
@@ -229,10 +236,12 @@ void pageReplaceMin(FILE* fp, int frames){
 
     // construct future pages array (hashmap would be better, but i'm lazy)
     int pageArray[MAX_FILE_LINES];
+    // init array
     for (int i = 0; i < MAX_FILE_LINES; i++) {
         pageArray[i] = -1;
     }
 
+    // put instructions into array
     for (int i = 0; !feof(fp); i++) {
         ptr = fgets(str, BUF_SIZE, fp);
         if (ptr) {
@@ -279,7 +288,8 @@ void pageReplaceMin(FILE* fp, int frames){
                 }
                 //No room in the frames, so replace the frame that would be used the latest (if at all)
                 else{
-    
+                    
+                    // try and find when each page frame will be used next
                     for (int j = 0; j < frames; j++) {
                         ind = inArray(pageArray, pageFrames[j], i, MAX_FILE_LINES);
                         if (ind < 0) {
@@ -289,6 +299,7 @@ void pageReplaceMin(FILE* fp, int frames){
                         }
 
                         if (bestPage < ind) {
+                            // found a latter page frame
                             bestPage = ind;
                             bestPageIndex = j;
                         }
@@ -323,9 +334,16 @@ void pageReplaceMin(FILE* fp, int frames){
     free(str);
 }
 
+/**
+ * pageReplaceClock = an implementation of the Clock algorithm for page replacement
+ * input(s):
+ *      fp - a FILE pointer to the file that contains the instructions
+ *      frames - the number of possible frames
+ **/
 void pageReplaceClock(FILE* fp, int frames){
+    // same setup in pageReplace
     int pageFrames[frames];
-    int clockBits[frames];
+    int clockBits[frames]; // an array representing the boolean clock
     for(int i = 0; i < frames; i++){
         pageFrames[i] = -1;
         clockBits[i] = 0;
@@ -337,6 +355,7 @@ void pageReplaceClock(FILE* fp, int frames){
     char num[4];
     int readMiss = 0, writeMiss = 0;
     int pageRefs = 0, pageMiss = 0, pageMissTime = 0, writingBackDirty = 0;
+    int readHits = 0, writeHits = 0;
 
     while(!feof(fp)){
         ptr = fgets(str, BUF_SIZE, fp);
@@ -351,10 +370,19 @@ void pageReplaceClock(FILE* fp, int frames){
 
             if(pagePlace != -1){
                 if(DEBUG == 1) printf("#%d is a hit!\n", pageNum);
+                // update clock
                 clockBits[pagePlace] = 1;
                 
+                if(*str == 'R'){
+                    readHits++;
+                }
+                if(*str == 'W'){
+                    writeHits++;
+                }
             }else{//If not, then page fault
                 pageMiss++;
+
+                // move through the clock
                 for (;;) {                    
                     if (clockBits[ind] == 0) {
                         // found frame to replace
@@ -363,6 +391,7 @@ void pageReplaceClock(FILE* fp, int frames){
                         ind = (ind + 1) % frames;
                         break;
                     } else {
+                        // frame has used it's first chance
                         clockBits[ind] = 0;
                         ind = (ind + 1) % frames;
                     }
@@ -384,6 +413,7 @@ void pageReplaceClock(FILE* fp, int frames){
         }
     }
     if(DEBUG == 1)  printFrames(pageFrames, frames);
+    printf("#read misses: %d,write misses: %d\n", readHits, writeHits);
     printf("#read misses: %d,write misses: %d\n", readMiss, writeMiss);
     printf("Total number of page references: %d\n", pageRefs);
     printf("Total number of page misses: %d\n", pageMiss);
