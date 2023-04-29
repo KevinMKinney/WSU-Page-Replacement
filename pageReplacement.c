@@ -168,7 +168,7 @@ void pageReplace(FILE* fp, int frames, int algType){
                         readMiss++;
                     }
                     if(*str == 'W'){
-                        writingBackDirty += 15;
+                        writingBackDirty += 10;
                         pageMissTime += 15;
                         if(DEBUG == 1) printf("#Page fault, write issue\n");
                         writeMiss++;
@@ -193,7 +193,7 @@ void pageReplace(FILE* fp, int frames, int algType){
                     }
                     if(*str == 'W'){
                         pageMissTime += 15;
-                        writingBackDirty += 15;
+                        writingBackDirty += 10;
                         if(DEBUG == 1) printf("#Page fault, write issue\n");
                         writeMiss++;
                     }
@@ -305,7 +305,7 @@ void pageReplaceMin(FILE* fp, int frames){
                     }
                     if(*str == 'W'){
                         pageMissTime += 15;
-                        writingBackDirty += 15;
+                        writingBackDirty += 10;
                         if(DEBUG == 1) printf("#Page fault, write issue\n");
                         writeMiss++;
                     }
@@ -368,14 +368,14 @@ void pageReplaceClock(FILE* fp, int frames){
                     }
                 }
 
+                pageMissTime += 5;
                 if(*str == 'R'){
                     if(DEBUG == 1) printf("#Page fault, read issue\n");
-                    pageMissTime += 5;
                     readMiss++;
                 }
                 if(*str == 'W'){
-                    pageMissTime += 15;
-                    writingBackDirty += 15;
+                    pageMissTime += 10;
+                    writingBackDirty += 10;
                     if(DEBUG == 1) printf("#Page fault, write issue\n");
                     writeMiss++;
                 }
